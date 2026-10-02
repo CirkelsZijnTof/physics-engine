@@ -11,56 +11,69 @@ class Phys_Object_v1
 {
 private:
 
-    // container for physics
-    const double mass = 1.0; // kg, mass of the object
-    const double initial_height = 100.0; // m, initial height of the object
-
-    double time_fallen = 0.0;
-
-    std::array<double, 2> current_position = {0.0, initial_height}; // m, initial position of the object (x, y)
-    std::array<double, 2> future_position = {0.0, 0.0}; // for handling object-ground collision
-    std::array<double, 2> velocity = {0.0, 0.0}; // m/s, amount of distance the position should be updated with (x, y)
+    void getVariable(auto& variable)
+    {   
+        std::cin >> variable;
+    };
 
 public:
 
-    // some getter functions sorry
-    const double getMass()
+    // container for physics
+    double mass = 1.0; // kg, mass of the object
+
+    double drag_coefficient = 0.47; // dimensionless, drag coefficient for a sphere
+    double cross_sectional_area = 0.1; // m^2, cross-sectional area of the object, remove const later
+
+    double time_fallen = 0.0;
+
+    double height = 0.0;
+
+    std::array<double, 2> current_position = {0.0, 0.0}; // m, initial position of the object (x, y)
+    std::array<double, 2> future_position = {0.0, 0.0}; // for handling object-ground collision
+    std::array<double, 2> velocity = {0.0, 0.0}; // m/s, amount of distance the position should be updated with (x, y)
+
+    // temporary physics object flags
+    bool has_landed = false;
+
+    // a few setters for convenience sorry
+    void setPosition(std::array<double, 2> position)
     {
-        return mass;
+        current_position = position;
     };
 
-    std::array<double, 2> getCurrentPosition()
+    void setPosition(double value, int index)
     {
-        return current_position;
+        current_position[index] = value;
     };
 
-    double getCurrentPosition(int index)
+    void applyStartUpLogic()
     {
-        return current_position[index];
+        setPosition(height, 1);
     };
 
-    std::array<double, 2> getFuturePosition() 
-    {
-        return future_position;
-    };
+    void setEnvironmentVariables() 
+    {  
 
-    double getFuturePosition(int index)
-    {
-        return future_position[index];
-    };
+        std::cout << "\nContinuing to Object setup.\n";
 
-    std::array<double, 2> getVelocity() 
-    {
-        return velocity;
-    };
+        std::cout << "How heavy is the object? (default = " << mass << "kg)\n";
+        getVariable(mass);
 
-    double getVelocity(int index) 
-    {
-        return velocity[index];
+        std::cout << "What is the object's drag coefficient? (default = " << drag_coefficient << ")\n";
+        getVariable(drag_coefficient);
+
+        std::cout << "What is the cross-sectional area of the object? (default = " << cross_sectional_area << " m^2)\n";
+        getVariable(cross_sectional_area);
+
+        std::cout << "What is the height at which the object starts? (default = " << height << "m)\n";
+        getVariable(height);
+
+        applyStartUpLogic();
+
     };
 
     // start of the real deal
-    void move(double force_x, double force_y, double delta_time)
+    void applyForces(double force_x, double force_y, double delta_time)
     {
 
         velocity[0] += force_x * delta_time;
@@ -83,7 +96,8 @@ public:
 
             std::cout << "program finished!\n";
             std::cout << time_fallen << "s\n";
-            std::cin.get();
+
+            has_landed = true;
 
         }
 
@@ -98,17 +112,64 @@ private:
     // sequence handler
     // function caller
     // physics constants
-    const double g = 9.81; // m/s^2, acceleration due to gravity, remove const later
-    const double air_density = 1.225; // kg/m^3, density of air at sea level, remove const later
-    const double drag_coefficient = 0.47; // dimensionless, drag coefficient for a sphere, remove const later
-    const double cross_sectional_area = 0.1; // m^2, cross-sectional area of the object, remove const later
+    bool do_medium_resistance = false;
 
-    const int steps = 1000; // N, remove const later
-    const double step_length = 0.05; // s, amount of time that passes after each step, remove const later
+    double g = 9.81; // m/s^2, acceleration due to gravity
+    double medium_density = 1.225; // kg/m^3, density of the medium. Based on air at sea level
+
+    void getVariable(auto& variable)
+    {   
+
+        std::cin >> variable;
+        std::cout << "\n";
+    };
 
 public:
 
-    double AirResistanceForce(double density, double drag, double area, double velocity) {
+    int steps = 1000; // N, remove const later
+    double step_time = 0.01; // s, amount of time that passes after each step, remove const later
+    bool do_infinite_run = false;
+
+    void applyStartUpLogic()
+    {
+        if(steps == 0)
+        {
+            do_infinite_run = true;
+            steps = 1;
+        };
+    };
+
+    void setEnvironmentVariables() 
+    {  
+
+        std::cout << "There's no user input validation. Please re-enter the default value exactly.\n";
+        std::cout << "If you mis-enter, the program will crash, so beware.\n\n";
+
+        std::cout << "How many steps should the program run for? (set to 0 to run until ground collision)";
+        getVariable(steps);
+
+        std::cout << "How long should each step take to complete? (default = 0.01)";
+        getVariable(step_time);
+
+        std::cout << "What should be the gravitational force? (default = 9.81 m/s^2)";
+        getVariable(g);
+
+        std::cout << "What should be the density of the medium through which the object is moving? (default = 1.225 kg/m^3)";
+        getVariable(medium_density);
+
+        applyStartUpLogic();
+
+    };
+
+    void updateStepCounter()
+    {
+        if(!do_infinite_run)
+        {
+            steps--;
+        }
+    };
+
+    double MediumResistanceForce(double density, double drag, double area, double velocity) {
 
         return 0.5 * density * velocity * velocity * drag * area;
     };
@@ -127,25 +188,25 @@ public:
     {   
         
         // set object vars
-        double o_mass = object.getMass();
+        double object_m = object.mass;
         double friction_y = 0;
 
         // y-acting forces that work on a falling object: Fgrav, Ffric
         if (do_air_resistance) 
         {   
-            friction_y = AirResistanceForce(air_density, drag_coefficient, cross_sectional_area, object.getVelocity(1));
+            friction_y = MediumResistanceForce(medium_density, object.drag_coefficient, object.cross_sectional_area, object.velocity[1]);
         }
 
-        return -GravitationalForce(o_mass) + friction_y;
+        return -GravitationalForce(object_m) + friction_y;
     };
 
-    void update(Phys_Object_v1& object, double delta_time, bool do_air_resistance) 
+    void move(Phys_Object_v1& object) 
     {
 
-        double force_x = getForceX(object, do_air_resistance);
-        double force_y = getForceY(object, do_air_resistance);
+        double force_x = getForceX(object, do_medium_resistance);
+        double force_y = getForceY(object, do_medium_resistance);
 
-        object.move(force_x, force_y, delta_time);
+        object.applyForces(force_x, force_y, step_time);
 
     };
 
